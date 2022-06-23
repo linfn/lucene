@@ -96,17 +96,18 @@ class SortedSetDocValuesWriter extends DocValuesWriter {
     if (currentDoc == -1) {
       return;
     }
-    Arrays.sort(currentValues, 0, currentUpto);
+    //Arrays.sort(currentValues, 0, currentUpto);
     int lastValue = -1;
-    int count = 0;
+    int count = currentUpto;
     for (int i = 0; i < currentUpto; i++) {
       int termID = currentValues[i];
       // if it's not a duplicate
-      if (termID != lastValue) {
-        pending.add(termID); // record the term id
-        count++;
-      }
-      lastValue = termID;
+      // if (termID != lastValue) {
+      //   pending.add(termID); // record the term id
+      //   count++;
+      // }
+      // lastValue = termID;
+      pending.add(termID);
     }
     // record the number of unique term ids for this doc
     pendingCounts.add(count);
@@ -273,7 +274,7 @@ class SortedSetDocValuesWriter extends DocValuesWriter {
         for (int i = 0; i < ordCount; i++) {
           currentDoc[i] = ordMap[Math.toIntExact(ordsIter.next())];
         }
-        Arrays.sort(currentDoc, 0, ordCount);          
+        //Arrays.sort(currentDoc, 0, ordCount);          
         ordUpto = 0;
       }
       return docID;

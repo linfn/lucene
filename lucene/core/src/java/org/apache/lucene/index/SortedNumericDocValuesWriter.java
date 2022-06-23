@@ -74,7 +74,7 @@ class SortedNumericDocValuesWriter extends DocValuesWriter {
     if (currentDoc == -1) {
       return;
     }
-    Arrays.sort(currentValues, 0, currentUpto);
+    //Arrays.sort(currentValues, 0, currentUpto);
     for (int i = 0; i < currentUpto; i++) {
       pending.add(currentValues[i]);
     }
