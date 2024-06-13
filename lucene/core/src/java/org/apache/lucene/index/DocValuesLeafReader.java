@@ -118,4 +118,9 @@ abstract class DocValuesLeafReader extends LeafReader {
   public final CacheHelper getReaderCacheHelper() {
     throw new UnsupportedOperationException();
   }
+
+  @Override
+  public DocValuesSkipper getDocValuesSkipper(String field) throws IOException {
+    throw new UnsupportedOperationException();
+  }
 }

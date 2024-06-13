@@ -107,6 +107,11 @@ public class TestSegmentToThreadMapping extends LuceneTestCase {
       }
 
       @Override
+      public DocValuesSkipper getDocValuesSkipper(String field) {
+        return null;
+      }
+
+      @Override
       public PointValues getPointValues(String field) {
         return null;
       }

@@ -16,6 +16,7 @@
  */
 package org.apache.lucene.index;
 
+import static org.apache.lucene.index.FieldInfo.verifySameDocValuesSkipIndex;
 import static org.apache.lucene.index.FieldInfo.verifySameDocValuesType;
 import static org.apache.lucene.index.FieldInfo.verifySameIndexOptions;
 import static org.apache.lucene.index.FieldInfo.verifySameOmitNorms;
@@ -410,6 +411,7 @@ public class FieldInfos implements Iterable<FieldInfo> {
     // changes DV type, even across segments / IndexWriter
     // sessions:
     private final Map<String, DocValuesType> docValuesType;
+    private final Map<String, Boolean> docValuesSkipIndex;
 
     private final Map<String, FieldDimensions> dimensions;
 
@@ -435,6 +437,7 @@ public class FieldInfos implements Iterable<FieldInfo> {
       this.numberToName = new IntObjectHashMap<>();
       this.indexOptions = new HashMap<>();
       this.docValuesType = new HashMap<>();
+      this.docValuesSkipIndex = new HashMap<>();
       this.dimensions = new HashMap<>();
       this.vectorProps = new HashMap<>();
       this.omitNorms = new HashMap<>();
@@ -495,6 +498,7 @@ public class FieldInfos implements Iterable<FieldInfo> {
           this.omitNorms.put(fieldName, fi.omitsNorms());
         }
         docValuesType.put(fieldName, fi.getDocValuesType());
+        docValuesSkipIndex.put(fieldName, fi.hasDocValuesSkipIndex());
         dimensions.put(
             fieldName,
             new FieldDimensions(
@@ -575,6 +579,9 @@ public class FieldInfos implements Iterable<FieldInfo> {
 
       DocValuesType currentDVType = docValuesType.get(fieldName);
       verifySameDocValuesType(fieldName, currentDVType, fi.getDocValuesType(), strictlyConsistent);
+      boolean currentDocValuesSkipIndex = docValuesSkipIndex.getOrDefault(fieldName, false);
+      verifySameDocValuesSkipIndex(
+          fieldName, currentDocValuesSkipIndex, fi.hasDocValuesSkipIndex());
 
       FieldDimensions dims = dimensions.get(fieldName);
       verifySamePointsOptions(
@@ -631,6 +638,7 @@ public class FieldInfos implements Iterable<FieldInfo> {
                   false,
                   IndexOptions.NONE,
                   dvType,
+                  false,
                   -1,
                   new HashMap<>(),
                   0,
@@ -655,6 +663,15 @@ public class FieldInfos implements Iterable<FieldInfo> {
                   + "] has inconsistent doc values' type of ["
                   + fieldDvType
                   + "].");
+        }
+        boolean hasDocValuesSkipIndex = docValuesSkipIndex.getOrDefault(fieldName, false);
+        if (hasDocValuesSkipIndex) {
+          throw new IllegalArgumentException(
+              "Can't update ["
+                  + dvType
+                  + "] doc values; the field ["
+                  + fieldName
+                  + "] must be doc values only field, bit it has doc values skip index");
         }
         FieldDimensions fdimensions = dimensions.get(fieldName);
         if (fdimensions != null && fdimensions.dimensionCount != 0) {
@@ -715,6 +732,7 @@ public class FieldInfos implements Iterable<FieldInfo> {
           false,
           IndexOptions.NONE,
           dvType,
+          false,
           -1,
           new HashMap<>(),
           0,
@@ -900,6 +918,7 @@ public class FieldInfos implements Iterable<FieldInfo> {
               fi.hasPayloads(),
               fi.getIndexOptions(),
               fi.getDocValuesType(),
+              fi.hasDocValuesSkipIndex(),
               dvGen,
               // original attributes is UnmodifiableMap
               new HashMap<>(fi.attributes()),

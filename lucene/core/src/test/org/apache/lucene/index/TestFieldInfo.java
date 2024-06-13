@@ -214,6 +214,7 @@ public class TestFieldInfo extends LuceneTestCase {
     boolean storePayloads = false;
     IndexOptions indexOptions = IndexOptions.DOCS;
     DocValuesType docValues = DocValuesType.NONE;
+    boolean docValuesSkipIndex = false;
     long dvGen = -1;
     Map<String, String> attributes = new HashMap<>();
     int pointDimensionCount = 0;
@@ -235,6 +236,7 @@ public class TestFieldInfo extends LuceneTestCase {
           storePayloads,
           indexOptions,
           docValues,
+          docValuesSkipIndex,
           dvGen,
           attributes,
           pointDimensionCount,

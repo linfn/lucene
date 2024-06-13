@@ -60,6 +60,7 @@ public class TestFieldsReader extends LuceneTestCase {
               false,
               ift.indexOptions(),
               ift.docValuesType(),
+              ift.hasDocValuesSkipIndex(),
               -1,
               new HashMap<>(),
               0,

@@ -104,6 +104,9 @@ public class TestCheckIndex extends BaseTestCheckIndex {
           // doc value
           doc.add(new NumericDocValuesField("dv", random().nextLong()));
 
+          // doc value with skip index
+          doc.add(NumericDocValuesField.indexedField("dv_skip", random().nextLong()));
+
           // point value
           byte[] point = new byte[4];
           NumericUtils.intToSortableBytes(random().nextInt(), point, 0);
@@ -151,7 +154,7 @@ public class TestCheckIndex extends BaseTestCheckIndex {
       assertNull(segStatus.liveDocStatus.error);
 
       // confirm field infos testing status
-      assertEquals(8, segStatus.fieldInfoStatus.totFields);
+      assertEquals(9, segStatus.fieldInfoStatus.totFields);
       assertTrue(output.toString(IOUtils.UTF_8).contains("test: field infos"));
       assertNull(segStatus.fieldInfoStatus.error);
 
@@ -181,7 +184,8 @@ public class TestCheckIndex extends BaseTestCheckIndex {
       assertNull(segStatus.termVectorStatus.error);
 
       // confirm doc values testing status
-      assertEquals(2, segStatus.docValuesStatus.totalNumericFields);
+      assertEquals(3, segStatus.docValuesStatus.totalNumericFields);
+      assertEquals(1, segStatus.docValuesStatus.totalSkippingIndex);
       assertTrue(output.toString(IOUtils.UTF_8).contains("test: docvalues"));
       assertNull(segStatus.docValuesStatus.error);
 

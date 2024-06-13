@@ -28,13 +28,16 @@ import java.util.Objects;
  * threads accessing this object.
  */
 public final class FieldInfo {
+
   /** Field's name */
   public final String name;
 
   /** Internal field number */
   public final int number;
 
-  private DocValuesType docValuesType;
+  private DocValuesType docValuesType = DocValuesType.NONE;
+
+  private final boolean docValuesSkipIndex;
 
   // True if any document indexed term vectors
   private boolean storeTermVector;
@@ -80,6 +83,7 @@ public final class FieldInfo {
       boolean storePayloads,
       IndexOptions indexOptions,
       DocValuesType docValues,
+      boolean hasDocValuesSkipIndex,
       long dvGen,
       Map<String, String> attributes,
       int pointDimensionCount,
@@ -95,6 +99,7 @@ public final class FieldInfo {
     this.docValuesType =
         Objects.requireNonNull(
             docValues, "DocValuesType must not be null (field: \"" + name + "\")");
+    this.docValuesSkipIndex = hasDocValuesSkipIndex;
     this.indexOptions =
         Objects.requireNonNull(
             indexOptions, "IndexOptions must not be null (field: \"" + name + "\")");
@@ -151,6 +156,13 @@ public final class FieldInfo {
 
     if (docValuesType == null) {
       throw new IllegalArgumentException("DocValuesType must not be null (field: '" + name + "')");
+    }
+    if (docValuesType.supportsSkipIndex == false && docValuesSkipIndex) {
+      throw new IllegalArgumentException(
+          "field '"
+              + name
+              + "' cannot have docValuesSkipIndex set to true with doc values type "
+              + docValuesType);
     }
     if (dvGen != -1 && docValuesType == DocValuesType.NONE) {
       throw new IllegalArgumentException(
@@ -236,6 +248,7 @@ public final class FieldInfo {
           fieldName, this.storeTermVector, o.storeTermVector, strictlyConsistent);
     }
     verifySameDocValuesType(fieldName, this.docValuesType, o.docValuesType, strictlyConsistent);
+    verifySameDocValuesSkipIndex(fieldName, this.docValuesSkipIndex, o.docValuesSkipIndex);
     verifySamePointsOptions(
         fieldName,
         this.pointDimensionCount,
@@ -302,6 +315,24 @@ public final class FieldInfo {
               + docValuesType1
               + " to inconsistent doc values type="
               + docValuesType2);
+    }
+  }
+
+  /**
+   * Verify that the provided docValues type are the same
+   *
+   * @throws IllegalArgumentException if they are not the same
+   */
+  static void verifySameDocValuesSkipIndex(
+      String fieldName, boolean hasDocValuesSkipIndex1, boolean hasDocValuesSkipIndex2) {
+    if (hasDocValuesSkipIndex1 != hasDocValuesSkipIndex2) {
+      throw new IllegalArgumentException(
+          "cannot change field \""
+              + fieldName
+              + "\" from docValuesSkipIndex="
+              + hasDocValuesSkipIndex1
+              + " to inconsistent docValuesSkipIndex="
+              + hasDocValuesSkipIndex2);
     }
   }
 
@@ -425,6 +456,7 @@ public final class FieldInfo {
     boolean newOmitNorms = this.omitNorms;
     boolean newStorePayloads = this.storePayloads;
     DocValuesType newDocValues = this.docValuesType;
+    boolean newDocValuesSkipIndex = this.docValuesSkipIndex;
     int newPointDimensionCount = this.pointDimensionCount;
     int newPointNumBytes = this.pointNumBytes;
     int newPointIndexDimensionCount = this.pointIndexDimensionCount;
@@ -523,6 +555,7 @@ public final class FieldInfo {
         fieldInfoChanges = true;
         newDocValues = otherFi.docValuesType;
         newDvGen = otherFi.dvGen;
+        newDocValuesSkipIndex = otherFi.docValuesSkipIndex;
       } else {
         throw new IllegalArgumentException(
             "cannot change DocValues type from "
@@ -546,6 +579,7 @@ public final class FieldInfo {
         newStorePayloads,
         newIndexOptions,
         newDocValues,
+        newDocValuesSkipIndex,
         newDvGen,
         this.attributes, // attributes don't need to be handled here because they are handled for
         // the non-legacy case in FieldInfos
@@ -724,6 +758,11 @@ public final class FieldInfo {
    */
   public DocValuesType getDocValuesType() {
     return docValuesType;
+  }
+
+  /** Returns true if, and only if, this field has a skip index. */
+  public boolean hasDocValuesSkipIndex() {
+    return docValuesSkipIndex;
   }
 
   /** Sets the docValues generation of this field. */
