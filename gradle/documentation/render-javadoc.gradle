@@ -65,7 +65,9 @@ allprojects {
       // as part of the site's creation. A side-effect of this is that javadocs would not
       // be linted for these projects. To avoid this, we connect the regular javadoc task
       // to check so that everything is validated.
-      project.tasks.getByName("check").dependsOn renderJavadoc
+      if (!(project.path ==~ /:keta:.*/)) {
+        project.tasks.getByName("check").dependsOn renderJavadoc
+      }
     } else {
       task renderSiteJavadoc(type: RenderJavadocTask) {
         description "Generates Javadoc API documentation for the site (relative links)."

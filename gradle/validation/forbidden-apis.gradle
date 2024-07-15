@@ -23,7 +23,9 @@ def resources = scriptResources(buildscript)
 // Only apply forbidden-apis to java projects.
 allprojects { prj ->
   plugins.withId("java", {
-    prj.apply plugin: 'de.thetaphi.forbiddenapis'
+    if (!(prj.path ==~ /:keta:.*/)) {
+      prj.apply plugin: 'de.thetaphi.forbiddenapis'
+    }
 
     // This helper method appends signature files based on a set of true
     // dependencies from a given configuration.
@@ -156,8 +158,8 @@ allprojects { prj ->
 
     // apply logging patterns for all modules except Luke.
     if (prj.path !in [
-        ":lucene:luke"
-    ]) {
+        ":lucene:luke",
+    ] && !(prj.path ==~/:keta:.*/)) {
       forbiddenApisMain.signaturesFiles += files(
           file("${resources}/defaults.logging.txt")
       )
