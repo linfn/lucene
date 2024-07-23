@@ -103,13 +103,15 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
 
   private long stallLimitBytes() {
     final double maxRamMB = config.getRAMBufferSizeMB();
+    final double stallLimitRatio = config.getStallLimitRatio();
     return maxRamMB != IndexWriterConfig.DISABLE_AUTO_FLUSH
-        ? (long) (2 * (maxRamMB * 1024 * 1024))
+        ? (long) (stallLimitRatio * (maxRamMB * 1024 * 1024))
         : Long.MAX_VALUE;
   }
 
   private boolean assertMemory() {
     final double maxRamMB = config.getRAMBufferSizeMB();
+    final double stallLimitRatio = config.getStallLimitRatio();
     // We can only assert if we have always been flushing by RAM usage; otherwise the assert will
     // false trip if e.g. the
     // flush-by-doc-count * doc size was large enough to use far more RAM than the sudden change to
@@ -132,7 +134,7 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
       // that crossed the stall control before we reached the limit and each of them could hold a
       // peak document
       final long expected =
-          (2 * ramBufferBytes)
+              (long) (stallLimitRatio * ramBufferBytes)
               + ((numPending + numFlushingDWPT() + numBlockedFlushes()) * peakDelta)
               + (numDocsSinceStalled * peakDelta);
       // the expected ram consumption is an upper bound at this point and not really the expected

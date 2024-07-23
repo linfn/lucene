@@ -82,6 +82,11 @@ public final class IndexWriterConfig extends LiveIndexWriterConfig {
    */
   public static final double DEFAULT_RAM_BUFFER_SIZE_MB = 16.0;
 
+  /**
+   * Default value is 2.0.
+   */
+  public static final double DEFAULT_STALL_LIMIT_RATIO = 2.0;
+
   /** Default setting (true) for {@link #setReaderPooling}. */
   // We changed this default to true with concurrent deletes/updates (LUCENE-7868),
   // because we will otherwise need to open and close segment readers more frequently.

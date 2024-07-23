@@ -41,6 +41,7 @@ public class LiveIndexWriterConfig {
 
   private volatile int maxBufferedDocs;
   private volatile double ramBufferSizeMB;
+  private volatile double stallLimitRatio;
   private volatile IndexReaderWarmer mergedSegmentWarmer;
 
   // modified by IndexWriterConfig
@@ -121,6 +122,7 @@ public class LiveIndexWriterConfig {
     this.analyzer = analyzer;
     ramBufferSizeMB = IndexWriterConfig.DEFAULT_RAM_BUFFER_SIZE_MB;
     maxBufferedDocs = IndexWriterConfig.DEFAULT_MAX_BUFFERED_DOCS;
+    stallLimitRatio = IndexWriterConfig.DEFAULT_STALL_LIMIT_RATIO;
     mergedSegmentWarmer = null;
     delPolicy = new KeepOnlyLastCommitDeletionPolicy();
     commit = null;
@@ -196,6 +198,16 @@ public class LiveIndexWriterConfig {
   /** Returns the value set by {@link #setRAMBufferSizeMB(double)} if enabled. */
   public double getRAMBufferSizeMB() {
     return ramBufferSizeMB;
+  }
+
+  /** Stall limit ratio */
+  public double getStallLimitRatio() {
+    return stallLimitRatio;
+  }
+
+  /** Stall limit ratio */
+  public void setStallLimitRatio(double stallLimitRatio) {
+    this.stallLimitRatio = stallLimitRatio;
   }
 
   /**
