@@ -214,9 +214,15 @@ final class SortedSetDocValuesRangeQuery extends Query {
                         if (ord < minOrd) {
                           continue;
                         }
+
+                        // KetaDB 中多值不再保证有序
+                        if (ord <= maxOrd) {
+                          return true;
+                        }
+
                         // Values are sorted, so the first ord that is >= minOrd is our best
                         // candidate
-                        return ord <= maxOrd;
+                        // return ord <= maxOrd;
                       }
                       return false; // all ords were < minOrd
                     }

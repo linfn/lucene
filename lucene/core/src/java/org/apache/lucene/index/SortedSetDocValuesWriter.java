@@ -20,7 +20,6 @@ import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 import static org.apache.lucene.util.ByteBlockPool.BYTE_BLOCK_SIZE;
 
 import java.io.IOException;
-import java.util.Arrays;
 import org.apache.lucene.codecs.DocValuesConsumer;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.index.SortedDocValuesWriter.BufferedSortedDocValues;
@@ -103,19 +102,20 @@ class SortedSetDocValuesWriter extends DocValuesWriter<SortedSetDocValues> {
     if (currentDoc == -1) {
       return;
     }
-    if (currentUpto > 1) {
-      Arrays.sort(currentValues, 0, currentUpto);
-    }
-    int lastValue = -1;
-    int count = 0;
+    // if (currentUpto > 1) {
+    //   Arrays.sort(currentValues, 0, currentUpto);
+    // }
+    // int lastValue = -1;
+    int count = currentUpto;
     for (int i = 0; i < currentUpto; i++) {
       int termID = currentValues[i];
       // if it's not a duplicate
-      if (termID != lastValue) {
-        pending.add(termID); // record the term id
-        count++;
-      }
-      lastValue = termID;
+      // if (termID != lastValue) {
+      //   pending.add(termID); // record the term id
+      //   count++;
+      // }
+      // lastValue = termID;
+      pending.add(termID);
     }
     // record the number of unique term ids for this doc
     if (pendingCounts != null) {
@@ -301,7 +301,7 @@ class SortedSetDocValuesWriter extends DocValuesWriter<SortedSetDocValues> {
         for (int i = 0; i < ordCount; i++) {
           currentDoc[i] = ordMap[Math.toIntExact(ordsIter.next())];
         }
-        Arrays.sort(currentDoc, 0, ordCount);
+        //Arrays.sort(currentDoc, 0, ordCount);
         ordUpto = 0;
       }
       return docID;

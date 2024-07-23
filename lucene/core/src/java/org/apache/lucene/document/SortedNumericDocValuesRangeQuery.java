@@ -158,9 +158,15 @@ final class SortedNumericDocValuesRangeQuery extends Query {
                     if (value < lowerValue) {
                       continue;
                     }
+
+                    // KetaDB 中多值不再保证有序
+                    if (value <= upperValue) {
+                      return true;
+                    }
+
                     // Values are sorted, so the first value that is >= lowerValue is our best
                     // candidate
-                    return value <= upperValue;
+                    // return value <= upperValue;
                   }
                   return false; // all values were < lowerValue
                 }
