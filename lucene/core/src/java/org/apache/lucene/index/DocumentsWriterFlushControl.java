@@ -134,7 +134,7 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
       // that crossed the stall control before we reached the limit and each of them could hold a
       // peak document
       final long expected =
-              (long) (stallLimitRatio * ramBufferBytes)
+          (long) (stallLimitRatio * ramBufferBytes)
               + ((numPending + numFlushingDWPT() + numBlockedFlushes()) * peakDelta)
               + (numDocsSinceStalled * peakDelta);
       // the expected ram consumption is an upper bound at this point and not really the expected

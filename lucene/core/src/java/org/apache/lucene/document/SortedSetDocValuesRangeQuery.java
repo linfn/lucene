@@ -176,8 +176,8 @@ final class SortedSetDocValuesRangeQuery extends Query {
                 && skipper.docCount() == context.reader().maxDoc()
                 && skipper.minValue() >= minOrd
                 && skipper.maxValue() <= maxOrd) {
-              return new ConstantScoreScorer(weight,
-                  score(), scoreMode, DocIdSetIterator.all(skipper.docCount()));
+              return new ConstantScoreScorer(
+                  weight, score(), scoreMode, DocIdSetIterator.all(skipper.docCount()));
             }
 
             final SortedDocValues singleton = DocValues.unwrapSingleton(values);

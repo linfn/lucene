@@ -186,7 +186,7 @@ final class SortedNumericDocValuesRangeQuery extends Query {
   }
 
   private DocIdSetIterator getDocIdSetIteratorOrNullForPrimarySort(
-          LeafReader reader, NumericDocValues numericDocValues, DocValuesSkipper skipper)
+      LeafReader reader, NumericDocValues numericDocValues, DocValuesSkipper skipper)
       throws IOException {
     if (skipper.docCount() != reader.maxDoc()) {
       return null;
