@@ -253,6 +253,17 @@ final class FreqProxTermsWriter extends TermsHash {
       // Even though LSBRadixSorter cannot take advantage of partial ordering like TimSorter it is
       // often still faster for nearly-sorted inputs.
       sorter.sort(numBits, docs, upTo);
+
+      if (docMap.unique()) {
+        i = 0;
+        for (int j = 1; j <= upTo; j++) {
+          if (docs[i] != docs[j]) {
+            docs[++i] = docs[j];
+          }
+        }
+        upTo = i;
+      }
+
       docIt = -1;
     }
 

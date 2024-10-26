@@ -18,6 +18,7 @@
 package org.apache.lucene.index;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.lucene.index.MergeState.DocMap;
 import org.apache.lucene.search.Sort;
@@ -36,7 +37,8 @@ final class MultiSorter {
    * already be sorted by the same sort! Returns null if the merge sort is not needed (segments are
    * already in index sort order).
    */
-  static MergeState.DocMap[] sort(Sort sort, List<CodecReader> readers) throws IOException {
+  static MergeState.DocMapsAndMaxDoc sort(Sort sort, boolean unique, List<CodecReader> readers)
+      throws IOException {
 
     // TODO: optimize if only 1 reader is incoming, though that's a rare case
 
@@ -109,6 +111,8 @@ final class MultiSorter {
     int mappedDocID = 0;
     int lastReaderIndex = 0;
     boolean isSorted = true;
+    boolean isDuplicated = false;
+    long[] lastValues = null;
     while (queue.size() != 0) {
       LeafAndDocID top = queue.top();
       if (lastReaderIndex > top.readerIndex) {
@@ -116,9 +120,26 @@ final class MultiSorter {
         isSorted = false;
       }
       lastReaderIndex = top.readerIndex;
-      builders[top.readerIndex].add(mappedDocID);
+      var builder = builders[top.readerIndex];
       if (top.liveDocs == null || top.liveDocs.get(top.docID)) {
-        mappedDocID++;
+        if (unique) {
+          if (lastValues == null) {
+            lastValues = Arrays.copyOf(top.valuesAsComparableLongs, comparables.length);
+          } else {
+            if (!Arrays.equals(lastValues, top.valuesAsComparableLongs)) {
+              mappedDocID++;
+              System.arraycopy(top.valuesAsComparableLongs, 0, lastValues, 0, comparables.length);
+            } else {
+              isDuplicated = true;
+            }
+          }
+          builder.add(mappedDocID);
+        } else {
+          builder.add(mappedDocID);
+          mappedDocID++;
+        }
+      } else {
+        builder.add(mappedDocID);
       }
       top.docID++;
       if (top.docID < top.maxDoc) {
@@ -131,7 +152,7 @@ final class MultiSorter {
         queue.pop();
       }
     }
-    if (isSorted) {
+    if (isSorted && !isDuplicated) {
       return null;
     }
 
@@ -149,7 +170,7 @@ final class MultiSorter {
           };
     }
 
-    return docMaps;
+    return new MergeState.DocMapsAndMaxDoc(docMaps, unique ? mappedDocID + 1 : mappedDocID);
   }
 
   private static class LeafAndDocID {

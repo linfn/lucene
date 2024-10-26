@@ -33,7 +33,7 @@ import org.apache.lucene.util.packed.PackedInts;
 import org.apache.lucene.util.packed.PackedLongValues;
 
 /** Buffers up pending byte[] per doc, then flushes when segment flushes. */
-class BinaryDocValuesWriter extends DocValuesWriter<BinaryDocValues> {
+public class BinaryDocValuesWriter extends DocValuesWriter<BinaryDocValues> {
 
   /** Maximum length for a binary field. */
   private static final int MAX_LENGTH = ArrayUtil.MAX_ARRAY_LENGTH;

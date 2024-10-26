@@ -233,6 +233,16 @@ final class SegmentMerger {
   private int mergeFields() throws IOException {
     try (StoredFieldsWriter fieldsWriter =
         codec.storedFieldsFormat().fieldsWriter(directory, mergeState.segmentInfo, context)) {
+      // 去重模式下, 暂不支持 stored fields
+      if (mergeState.segmentInfo.isIndexUnique()) {
+        int maxDoc = mergeState.segmentInfo.maxDoc();
+        for (int i = 0; i < maxDoc; i++) {
+          fieldsWriter.startDocument();
+          fieldsWriter.finishDocument();
+        }
+        fieldsWriter.finish(maxDoc);
+        return maxDoc;
+      }
       return fieldsWriter.merge(mergeState);
     }
   }

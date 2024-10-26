@@ -175,7 +175,8 @@ final class DocumentsWriterPerThread implements Accountable, Lock {
             Collections.emptyMap(),
             StringHelper.randomId(),
             Collections.emptyMap(),
-            indexWriterConfig.getIndexSort());
+            indexWriterConfig.getIndexSort(),
+            indexWriterConfig.isIndexUnique());
     assert numDocsInRAM == 0;
     if (INFO_VERBOSE && infoStream.isEnabled("DWPT")) {
       infoStream.message(
@@ -396,7 +397,8 @@ final class DocumentsWriterPerThread implements Accountable, Lock {
     assert flushPending.get() == Boolean.TRUE;
     assert numDocsInRAM > 0;
     assert deleteSlice.isEmpty() : "all deletes must be applied in prepareFlush";
-    segmentInfo.setMaxDoc(numDocsInRAM);
+    // 去重会重新计算文档数
+    // segmentInfo.setMaxDoc(numDocsInRAM);
     final SegmentWriteState flushState =
         new SegmentWriteState(
             infoStream,
@@ -442,7 +444,11 @@ final class DocumentsWriterPerThread implements Accountable, Lock {
       } else {
         softDeletedDocs = null;
       }
-      sortMap = indexingChain.flush(flushState);
+      sortMap = indexingChain.flush(flushState, numDocsInRAM);
+      if (flushState.segmentInfo.isIndexUnique() && sortMap != null) {
+        int dup = numDocsInRAM - flushState.segmentInfo.maxDoc();
+        pendingNumDocs.addAndGet(-dup);
+      }
       if (softDeletedDocs == null) {
         flushState.softDelCountOnFlush = 0;
       } else {

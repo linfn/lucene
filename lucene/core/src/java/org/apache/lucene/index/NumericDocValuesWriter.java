@@ -29,7 +29,7 @@ import org.apache.lucene.util.packed.PackedInts;
 import org.apache.lucene.util.packed.PackedLongValues;
 
 /** Buffers up pending long per doc, then flushes when segment flushes. */
-class NumericDocValuesWriter extends DocValuesWriter<NumericDocValues> {
+public class NumericDocValuesWriter extends DocValuesWriter<NumericDocValues> {
 
   private final PackedLongValues.Builder pending;
   private PackedLongValues finalValues;

@@ -32,14 +32,16 @@ import org.apache.lucene.util.packed.PackedLongValues;
  */
 public final class Sorter {
   final Sort sort;
+  final boolean unique;
 
   /** Creates a new Sorter to sort the index with {@code sort} */
-  Sorter(Sort sort) {
+  Sorter(Sort sort, boolean unique) {
     if (sort.needsScores()) {
       throw new IllegalArgumentException(
           "Cannot sort an index with a Sort that refers to the relevance score");
     }
     this.sort = sort;
+    this.unique = unique;
   }
 
   /**
@@ -63,10 +65,30 @@ public final class Sorter {
      * org.apache.lucene.index.LeafReader} which is sorted.
      */
     public abstract int size();
+
+    public boolean unique() {
+      return false;
+    }
+
+    public int newToOldSize(int docID) {
+      return 1;
+    }
+
+    public int newToOld(int docId, int index) {
+      return newToOld(docId);
+    }
+
+    public int oldSize() {
+      return size();
+    }
   }
 
   /** Check consistency of a {@link DocMap}, useful for assertions. */
   static boolean isConsistent(DocMap docMap) {
+    if (docMap.unique()) {
+      // 去重模式下, 暂不支持一致性检查
+      return true;
+    }
     final int maxDoc = docMap.size();
     for (int i = 0; i < maxDoc; ++i) {
       final int newID = docMap.oldToNew(i);
@@ -193,6 +215,95 @@ public final class Sorter {
     };
   }
 
+  /** Computes the old-to-new permutation over the given comparator. */
+  private static Sorter.DocMap sortUniq(final int maxDoc, IndexSorter.DocComparator comparator) {
+    // check if the index is sorted
+    boolean sortedAndUnique = true;
+    for (int i = 1; i < maxDoc; ++i) {
+      if (comparator.compare(i - 1, i) >= 0) {
+        sortedAndUnique = false;
+        break;
+      }
+    }
+    if (sortedAndUnique) {
+      return null;
+    }
+
+    // sort doc IDs
+    final int[] docs = new int[maxDoc];
+    for (int i = 0; i < maxDoc; i++) {
+      docs[i] = i;
+    }
+
+    DocValueSorter sorter = new DocValueSorter(docs, comparator);
+    // It can be common to sort a reader, add docs, sort it again, ... and in
+    // that case timSort can save a lot of time
+    sorter.sort(0, docs.length); // docs is now the newToOld mapping
+
+    final int[] oldToNewDocs = new int[maxDoc];
+    final int[] newToOld = new int[maxDoc];
+    final int[] newToOldOffsets = new int[maxDoc + 1];
+    oldToNewDocs[docs[0]] = 0;
+    newToOld[0] = docs[0];
+    newToOldOffsets[0] = 0;
+    int size = 1;
+    for (int i = 1; i < maxDoc; ++i) {
+      newToOld[i] = docs[i];
+      if (comparator.compare(docs[i - 1], docs[i]) != 0) {
+        newToOldOffsets[size] = i;
+        ++size;
+      }
+      oldToNewDocs[docs[i]] = size - 1;
+    }
+    newToOldOffsets[size] = maxDoc;
+
+    final PackedLongValues.Builder oldToNewBuilder =
+        PackedLongValues.monotonicBuilder(PackedInts.COMPACT);
+    for (int i = 0; i < maxDoc; ++i) {
+      oldToNewBuilder.add(oldToNewDocs[i]);
+    }
+    final PackedLongValues oldToNew = oldToNewBuilder.build();
+
+    final int finalSize = size;
+    return new Sorter.DocMap() {
+
+      @Override
+      public int oldToNew(int docID) {
+        return (int) oldToNew.get(docID);
+      }
+
+      @Override
+      public int newToOld(int docID) {
+        return newToOld[newToOldOffsets[docID]];
+      }
+
+      @Override
+      public int size() {
+        return finalSize;
+      }
+
+      @Override
+      public boolean unique() {
+        return true;
+      }
+
+      @Override
+      public int newToOldSize(int docID) {
+        return newToOldOffsets[docID + 1] - newToOldOffsets[docID];
+      }
+
+      @Override
+      public int newToOld(int docId, int index) {
+        return newToOld[newToOldOffsets[docId] + index];
+      }
+
+      @Override
+      public int oldSize() {
+        return maxDoc;
+      }
+    };
+  }
+
   /**
    * Returns a mapping from the old document ID to its new location in the sorted index.
    * Implementations can use the auxiliary {@link #sort(int, IndexSorter.DocComparator)} to compute
@@ -232,6 +343,20 @@ public final class Sorter {
   }
 
   DocMap sort(int maxDoc, IndexSorter.DocComparator[] comparators) throws IOException {
+    if (unique) {
+      final IndexSorter.DocComparator comparator =
+          (docID1, docID2) -> {
+            for (int i = 0; i < comparators.length; i++) {
+              int comp = comparators[i].compare(docID1, docID2);
+              if (comp != 0) {
+                return comp;
+              }
+            }
+            return 0;
+          };
+      return sortUniq(maxDoc, comparator);
+    }
+
     final IndexSorter.DocComparator comparator =
         (docID1, docID2) -> {
           for (int i = 0; i < comparators.length; i++) {

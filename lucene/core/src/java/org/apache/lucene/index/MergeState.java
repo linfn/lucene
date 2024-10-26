@@ -114,7 +114,6 @@ public class MergeState {
     fieldInfos = new FieldInfos[numReaders];
     liveDocs = new Bits[numReaders];
 
-    int numDocs = 0;
     for (int i = 0; i < numReaders; i++) {
       final CodecReader reader = readers.get(i);
 
@@ -156,18 +155,20 @@ public class MergeState {
       if (knnVectorsReaders[i] != null) {
         knnVectorsReaders[i] = knnVectorsReaders[i].getMergeInstance();
       }
-
-      numDocs += reader.numDocs();
     }
 
-    segmentInfo.setMaxDoc(numDocs);
+    var docMapsAndMaxDoc =
+        buildDocMaps(readers, segmentInfo.getIndexSort(), segmentInfo.isIndexUnique());
+    this.docMaps = docMapsAndMaxDoc.docMaps;
+    segmentInfo.setMaxDoc(docMapsAndMaxDoc.maxDoc);
 
     this.segmentInfo = segmentInfo;
-    this.docMaps = buildDocMaps(readers, segmentInfo.getIndexSort());
   }
 
+  record DocMapsAndMaxDoc(MergeState.DocMap[] docMaps, int maxDoc) {}
+
   // Remap docIDs around deletions
-  private DocMap[] buildDeletionDocMaps(List<CodecReader> readers) {
+  private DocMapsAndMaxDoc buildDeletionDocMaps(List<CodecReader> readers) {
 
     int totalDocs = 0;
     int numReaders = readers.size();
@@ -198,10 +199,11 @@ public class MergeState {
       totalDocs += reader.numDocs();
     }
 
-    return docMaps;
+    return new DocMapsAndMaxDoc(docMaps, totalDocs);
   }
 
-  private DocMap[] buildDocMaps(List<CodecReader> readers, Sort indexSort) throws IOException {
+  private DocMapsAndMaxDoc buildDocMaps(
+      List<CodecReader> readers, Sort indexSort, boolean indexUnique) throws IOException {
 
     if (indexSort == null) {
       // no index sort ... we only must map around deletions, and rebase to the merged segment's
@@ -210,7 +212,7 @@ public class MergeState {
     } else {
       // do a merge sort of the incoming leaves:
       long t0 = System.nanoTime();
-      DocMap[] result = MultiSorter.sort(indexSort, readers);
+      var result = MultiSorter.sort(indexSort, indexUnique, readers);
       if (result == null) {
         // already sorted so we can switch back to map around deletions
         return buildDeletionDocMaps(readers);

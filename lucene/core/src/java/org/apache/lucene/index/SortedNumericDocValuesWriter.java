@@ -19,7 +19,6 @@ package org.apache.lucene.index;
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 
 import java.io.IOException;
-import java.util.Arrays;
 import org.apache.lucene.codecs.DocValuesConsumer;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.index.NumericDocValuesWriter.BufferedNumericDocValues;
@@ -31,21 +30,22 @@ import org.apache.lucene.util.packed.PackedInts;
 import org.apache.lucene.util.packed.PackedLongValues;
 
 /** Buffers up pending long[] per doc, sorts, then flushes when segment flushes. */
-class SortedNumericDocValuesWriter extends DocValuesWriter<SortedNumericDocValues> {
+public class SortedNumericDocValuesWriter extends DocValuesWriter<SortedNumericDocValues> {
   private final PackedLongValues.Builder pending; // stream of all values
   private PackedLongValues.Builder pendingCounts; // count of values per doc
-  private final DocsWithFieldSet docsWithField;
+  protected final DocsWithFieldSet docsWithField;
   private final Counter iwBytesUsed;
   private long bytesUsed; // this only tracks differences in 'pending' and 'pendingCounts'
-  private final FieldInfo fieldInfo;
+  protected final FieldInfo fieldInfo;
   private int currentDoc = -1;
   private long[] currentValues = new long[8];
   private int currentUpto = 0;
 
-  private PackedLongValues finalValues;
-  private PackedLongValues finalValuesCount;
+  protected PackedLongValues finalValues;
+  protected PackedLongValues finalValuesCount;
+  protected SortedNumericDocValuesWriter sortByValues;
 
-  SortedNumericDocValuesWriter(FieldInfo fieldInfo, Counter iwBytesUsed) {
+  public SortedNumericDocValuesWriter(FieldInfo fieldInfo, Counter iwBytesUsed) {
     this.fieldInfo = fieldInfo;
     this.iwBytesUsed = iwBytesUsed;
     pending = PackedLongValues.deltaPackedBuilder(PackedInts.COMPACT);
@@ -159,6 +159,15 @@ class SortedNumericDocValuesWriter extends DocValuesWriter<SortedNumericDocValue
       return DocValues.singleton(new BufferedNumericDocValues(values, docsWithField.iterator()));
     } else {
       return new BufferedSortedNumericDocValues(values, valueCounts, docsWithField.iterator());
+    }
+  }
+
+  protected void finish() {
+    if (finalValues == null) {
+      assert finalValuesCount == null;
+      finishCurrentDoc();
+      finalValues = pending.build();
+      finalValuesCount = pendingCounts == null ? null : pendingCounts.build();
     }
   }
 

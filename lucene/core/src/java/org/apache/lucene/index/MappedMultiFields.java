@@ -115,6 +115,10 @@ public class MappedMultiFields extends FilterFields {
 
     @Override
     public PostingsEnum postings(PostingsEnum reuse, int flags) throws IOException {
+      if (mergeState.segmentInfo.isIndexUnique()) {
+        return postingsUniq(reuse, flags);
+      }
+
       MappingMultiPostingsEnum mappingDocsAndPositionsEnum;
       if (reuse instanceof MappingMultiPostingsEnum) {
         MappingMultiPostingsEnum postings = (MappingMultiPostingsEnum) reuse;
@@ -125,6 +129,26 @@ public class MappedMultiFields extends FilterFields {
         }
       } else {
         mappingDocsAndPositionsEnum = new MappingMultiPostingsEnum(field, mergeState);
+      }
+
+      MultiPostingsEnum docsAndPositionsEnum =
+          (MultiPostingsEnum)
+              in.postings(mappingDocsAndPositionsEnum.multiDocsAndPositionsEnum, flags);
+      mappingDocsAndPositionsEnum.reset(docsAndPositionsEnum);
+      return mappingDocsAndPositionsEnum;
+    }
+
+    public PostingsEnum postingsUniq(PostingsEnum reuse, int flags) throws IOException {
+      MappingUniqueMultiPostingsEnum mappingDocsAndPositionsEnum;
+      if (reuse instanceof MappingUniqueMultiPostingsEnum) {
+        MappingUniqueMultiPostingsEnum postings = (MappingUniqueMultiPostingsEnum) reuse;
+        if (postings.field.equals(this.field)) {
+          mappingDocsAndPositionsEnum = postings;
+        } else {
+          mappingDocsAndPositionsEnum = new MappingUniqueMultiPostingsEnum(field, mergeState);
+        }
+      } else {
+        mappingDocsAndPositionsEnum = new MappingUniqueMultiPostingsEnum(field, mergeState);
       }
 
       MultiPostingsEnum docsAndPositionsEnum =

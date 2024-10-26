@@ -3425,7 +3425,8 @@ public class IndexWriter
             Collections.emptyMap(),
             StringHelper.randomId(),
             Collections.emptyMap(),
-            config.getIndexSort());
+            config.getIndexSort(),
+            config.isIndexUnique());
 
     List<CodecReader> readers = new ArrayList<>();
     for (MergeReader mr : merge.getMergeReader()) {
@@ -3538,7 +3539,8 @@ public class IndexWriter
             info.info.getDiagnostics(),
             info.info.getId(),
             info.info.getAttributes(),
-            info.info.getIndexSort());
+            info.info.getIndexSort(),
+            info.info.isIndexUnique());
     SegmentCommitInfo newInfoPerCommit =
         new SegmentCommitInfo(
             newInfo,
@@ -5012,7 +5014,8 @@ public class IndexWriter
             Collections.emptyMap(),
             StringHelper.randomId(),
             Collections.emptyMap(),
-            config.getIndexSort());
+            config.getIndexSort(),
+            config.isIndexUnique());
     Map<String, String> details = new HashMap<>();
     details.put("mergeMaxNumSegments", "" + merge.maxNumSegments);
     details.put("mergeFactor", Integer.toString(merge.segments.size()));

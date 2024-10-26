@@ -93,6 +93,10 @@ public class LiveIndexWriterConfig {
   /** The sort order to use to write merged segments. */
   protected Sort indexSort = null;
 
+  protected boolean indexUnique;
+
+  protected volatile DocValuesWriterProvider docValuesWriterProvider;
+
   /** The comparator for sorting leaf readers. */
   protected Comparator<LeafReader> leafSorter;
 
@@ -141,6 +145,7 @@ public class LiveIndexWriterConfig {
     perThreadHardLimitMB = IndexWriterConfig.DEFAULT_RAM_PER_THREAD_HARD_LIMIT_MB;
     maxFullFlushMergeWaitMillis = IndexWriterConfig.DEFAULT_MAX_FULL_FLUSH_MERGE_WAIT_MILLIS;
     eventListener = IndexWriterEventListener.NO_OP_LISTENER;
+    docValuesWriterProvider = DocValuesWriterProvider.DEFAULT_PROVIDER;
   }
 
   /** Returns the default analyzer to use for indexing documents. */
@@ -412,6 +417,22 @@ public class LiveIndexWriterConfig {
   /** Returns the field names involved in the index sort */
   public Set<String> getIndexSortFields() {
     return indexSortFields;
+  }
+
+  public boolean isIndexUnique() {
+    return indexUnique;
+  }
+
+  public void setIndexUnique(boolean indexUnique) {
+    this.indexUnique = indexUnique;
+  }
+
+  public DocValuesWriterProvider getDocValuesWriterProvider() {
+    return docValuesWriterProvider;
+  }
+
+  public void setDocValuesWriterProvider(DocValuesWriterProvider docValuesWriterProvider) {
+    this.docValuesWriterProvider = docValuesWriterProvider;
   }
 
   /**

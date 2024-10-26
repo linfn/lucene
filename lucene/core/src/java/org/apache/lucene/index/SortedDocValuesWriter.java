@@ -36,7 +36,7 @@ import org.apache.lucene.util.packed.PackedLongValues;
  * Buffers up pending byte[] per doc, deref and sorting via int ord, then flushes when segment
  * flushes.
  */
-class SortedDocValuesWriter extends DocValuesWriter<SortedDocValues> {
+public class SortedDocValuesWriter extends DocValuesWriter<SortedDocValues> {
   final BytesRefHash hash;
   private final PackedLongValues.Builder pending;
   private final DocsWithFieldSet docsWithField;

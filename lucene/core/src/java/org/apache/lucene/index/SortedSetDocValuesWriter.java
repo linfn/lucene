@@ -39,25 +39,25 @@ import org.apache.lucene.util.packed.PackedLongValues;
  * Buffers up pending byte[]s per doc, deref and sorting via int ord, then flushes when segment
  * flushes.
  */
-class SortedSetDocValuesWriter extends DocValuesWriter<SortedSetDocValues> {
-  final BytesRefHash hash;
+public class SortedSetDocValuesWriter extends DocValuesWriter<SortedSetDocValues> {
+  protected final BytesRefHash hash;
   private final PackedLongValues.Builder pending; // stream of all termIDs
   private PackedLongValues.Builder pendingCounts; // termIDs per doc
-  private final DocsWithFieldSet docsWithField;
+  protected final DocsWithFieldSet docsWithField;
   private final Counter iwBytesUsed;
   private long bytesUsed; // this only tracks differences in 'pending' and 'pendingCounts'
-  private final FieldInfo fieldInfo;
+  protected final FieldInfo fieldInfo;
   private int currentDoc = -1;
   private int[] currentValues = new int[8];
   private int currentUpto;
   private int maxCount;
 
-  private PackedLongValues finalOrds;
-  private PackedLongValues finalOrdCounts;
-  private int[] finalSortedValues;
-  private int[] finalOrdMap;
+  protected PackedLongValues finalOrds;
+  protected PackedLongValues finalOrdCounts;
+  protected int[] finalSortedValues;
+  protected int[] finalOrdMap;
 
-  SortedSetDocValuesWriter(FieldInfo fieldInfo, Counter iwBytesUsed, ByteBlockPool pool) {
+  public SortedSetDocValuesWriter(FieldInfo fieldInfo, Counter iwBytesUsed, ByteBlockPool pool) {
     this.fieldInfo = fieldInfo;
     this.iwBytesUsed = iwBytesUsed;
     hash =
@@ -163,7 +163,7 @@ class SortedSetDocValuesWriter extends DocValuesWriter<SortedSetDocValues> {
     bytesUsed = newBytesUsed;
   }
 
-  private void finish() {
+  protected void finish() {
     if (finalOrds == null) {
       assert finalOrdCounts == null && finalSortedValues == null && finalOrdMap == null;
       finishCurrentDoc();
@@ -301,7 +301,7 @@ class SortedSetDocValuesWriter extends DocValuesWriter<SortedSetDocValues> {
         for (int i = 0; i < ordCount; i++) {
           currentDoc[i] = ordMap[Math.toIntExact(ordsIter.next())];
         }
-        //Arrays.sort(currentDoc, 0, ordCount);
+        // Arrays.sort(currentDoc, 0, ordCount);
         ordUpto = 0;
       }
       return docID;

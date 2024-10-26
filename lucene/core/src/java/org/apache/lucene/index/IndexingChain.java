@@ -96,6 +96,9 @@ final class IndexingChain implements Accountable {
   private final Consumer<Throwable> abortingExceptionConsumer;
   private boolean hasHitAbortingException;
 
+  private final boolean indexUnique;
+  private final DocValuesWriterProvider.SegmentDocValuesWriterProvider docValuesWriterProvider;
+
   IndexingChain(
       int indexCreatedVersionMajor,
       SegmentInfo segmentInfo,
@@ -139,6 +142,12 @@ final class IndexingChain implements Accountable {
         new FreqProxTermsWriter(
             intBlockAllocator, byteBlockAllocator, bytesUsed, termVectorsWriter);
     docValuesBytePool = new ByteBlockPool(byteBlockAllocator);
+
+    indexUnique = segmentInfo.isIndexUnique();
+    docValuesWriterProvider =
+        indexWriterConfig
+            .getDocValuesWriterProvider()
+            .getSegmentDocValuesWriterProvider(segmentInfo);
   }
 
   private void onAbortingException(Throwable th) {
@@ -216,7 +225,7 @@ final class IndexingChain implements Accountable {
     };
   }
 
-  private Sorter.DocMap maybeSortSegment(SegmentWriteState state) throws IOException {
+  private Sorter.DocMap maybeSortSegment(SegmentWriteState state, int maxDoc) throws IOException {
     Sort indexSort = state.segmentInfo.getIndexSort();
     if (indexSort == null) {
       return null;
@@ -234,7 +243,7 @@ final class IndexingChain implements Accountable {
             "missing doc values for parent field \"" + state.fieldInfos.getParentField() + "\"",
             "IndexingChain");
       }
-      BitSet parents = BitSet.of(readerValues, state.segmentInfo.maxDoc());
+      BitSet parents = BitSet.of(readerValues, maxDoc);
       comparatorWrapper =
           in ->
               (docID1, docID2) ->
@@ -248,22 +257,25 @@ final class IndexingChain implements Accountable {
         throw new UnsupportedOperationException("Cannot sort index using sort field " + sortField);
       }
 
-      IndexSorter.DocComparator docComparator =
-          sorter.getDocComparator(docValuesReader, state.segmentInfo.maxDoc());
+      IndexSorter.DocComparator docComparator = sorter.getDocComparator(docValuesReader, maxDoc);
       comparators.add(comparatorWrapper.apply(docComparator));
     }
-    Sorter sorter = new Sorter(indexSort);
+    Sorter sorter = new Sorter(indexSort, state.segmentInfo.isIndexUnique());
     // returns null if the documents are already sorted
-    return sorter.sort(
-        state.segmentInfo.maxDoc(), comparators.toArray(IndexSorter.DocComparator[]::new));
+    return sorter.sort(maxDoc, comparators.toArray(IndexSorter.DocComparator[]::new));
   }
 
-  Sorter.DocMap flush(SegmentWriteState state) throws IOException {
+  Sorter.DocMap flush(SegmentWriteState state, int maxDoc) throws IOException {
 
     // NOTE: caller (DocumentsWriterPerThread) handles
     // aborting on any exception from this method
-    Sorter.DocMap sortMap = maybeSortSegment(state);
-    int maxDoc = state.segmentInfo.maxDoc();
+    Sorter.DocMap sortMap = maybeSortSegment(state, maxDoc);
+    if (state.segmentInfo.isIndexUnique() && sortMap != null) {
+      state.segmentInfo.setMaxDoc(sortMap.size());
+    } else {
+      state.segmentInfo.setMaxDoc(maxDoc);
+    }
+
     long t0 = System.nanoTime();
     writeNorms(state, sortMap);
     if (infoStream.isEnabled("IW")) {
@@ -301,7 +313,7 @@ final class IndexingChain implements Accountable {
 
     // it's possible all docs hit non-aborting exceptions...
     t0 = System.nanoTime();
-    storedFieldsConsumer.finish(maxDoc);
+    storedFieldsConsumer.finish(state.segmentInfo.maxDoc()); // 这里要设置去重后的数量
     storedFieldsConsumer.flush(state, sortMap);
     if (infoStream.isEnabled("IW")) {
       infoStream.message(
@@ -403,6 +415,8 @@ final class IndexingChain implements Accountable {
     DocValuesConsumer dvConsumer = null;
     boolean success = false;
     try {
+      docValuesWriterProvider.beforeFlush(state);
+
       for (int i = 0; i < fieldHash.length; i++) {
         PerField perField = fieldHash[i];
         while (perField != null) {
@@ -531,6 +545,9 @@ final class IndexingChain implements Accountable {
 
   /** Calls StoredFieldsWriter.startDocument, aborting the segment if it hits any exception. */
   private void startStoredFields(int docID) throws IOException {
+    if (indexUnique) {
+      return;
+    }
     try {
       storedFieldsConsumer.startDocument(docID);
     } catch (Throwable th) {
@@ -541,6 +558,9 @@ final class IndexingChain implements Accountable {
 
   /** Calls StoredFieldsWriter.finishDocument, aborting the segment if it hits any exception. */
   private void finishStoredFields() throws IOException {
+    if (indexUnique) {
+      return;
+    }
     try {
       storedFieldsConsumer.finishDocument();
     } catch (Throwable th) {
@@ -686,24 +706,25 @@ final class IndexingChain implements Accountable {
     if (fi.getIndexOptions() != IndexOptions.NONE) {
       pf.setInvertState();
     }
+    var dvw = this.docValuesWriterProvider;
     DocValuesType dvType = fi.getDocValuesType();
     switch (dvType) {
       case NONE:
         break;
       case NUMERIC:
-        pf.docValuesWriter = new NumericDocValuesWriter(fi, bytesUsed);
+        pf.docValuesWriter = dvw.getNumericDocValuesWriter(fi, bytesUsed);
         break;
       case BINARY:
-        pf.docValuesWriter = new BinaryDocValuesWriter(fi, bytesUsed);
+        pf.docValuesWriter = dvw.getBinaryDocValuesWriter(fi, bytesUsed);
         break;
       case SORTED:
-        pf.docValuesWriter = new SortedDocValuesWriter(fi, bytesUsed, docValuesBytePool);
+        pf.docValuesWriter = dvw.getSortedDocValuesWriter(fi, bytesUsed, docValuesBytePool);
         break;
       case SORTED_NUMERIC:
-        pf.docValuesWriter = new SortedNumericDocValuesWriter(fi, bytesUsed);
+        pf.docValuesWriter = dvw.getSortedNumericDocValuesWriter(fi, bytesUsed);
         break;
       case SORTED_SET:
-        pf.docValuesWriter = new SortedSetDocValuesWriter(fi, bytesUsed, docValuesBytePool);
+        pf.docValuesWriter = dvw.getSortedSetDocValuesWriter(fi, bytesUsed, docValuesBytePool);
         break;
       default:
         throw new AssertionError("unrecognized DocValues.Type: " + dvType);
@@ -738,7 +759,7 @@ final class IndexingChain implements Accountable {
     }
 
     // Add stored fields
-    if (fieldType.stored()) {
+    if (fieldType.stored() && !indexUnique) {
       StoredValue storedValue = field.storedValue();
       if (storedValue == null) {
         throw new IllegalArgumentException("Cannot store a null value");

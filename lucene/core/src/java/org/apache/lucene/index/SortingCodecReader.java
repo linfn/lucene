@@ -338,7 +338,7 @@ public final class SortingCodecReader extends FilterCodecReader {
    * . If the reader is already sorted, this method might return the reader as-is.
    */
   public static CodecReader wrap(CodecReader reader, Sort sort) throws IOException {
-    return wrap(reader, new Sorter(sort).sort(reader), sort);
+    return wrap(reader, new Sorter(sort, false).sort(reader), sort);
   }
 
   /**
