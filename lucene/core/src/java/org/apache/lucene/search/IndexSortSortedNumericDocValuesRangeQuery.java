@@ -23,6 +23,7 @@ import java.util.Objects;
 import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.index.DocValues;
+import org.apache.lucene.index.DocValuesSkipper;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.NumericDocValues;
@@ -417,6 +418,21 @@ public class IndexSortSortedNumericDocValuesRangeQuery extends Query {
 
     final boolean reverse = indexSort.getSort()[0].getReverse();
 
+    var dvSkipper = context.reader().getDocValuesSkipper(field);
+    if (dvSkipper != null) {
+      if (dvSkipper.minValue() > upperValue || dvSkipper.maxValue() < lowerValue) {
+        return IteratorAndCount.empty();
+      }
+      if (dvSkipper.minValue() >= lowerValue && dvSkipper.maxValue() <= upperValue) {
+        int maxDoc = context.reader().maxDoc();
+        if (dvSkipper.docCount() == maxDoc) {
+          return IteratorAndCount.all(maxDoc);
+        } else {
+          return IteratorAndCount.sparseRange(0, maxDoc, delegate);
+        }
+      }
+    }
+
     PointValues points = context.reader().getPointValues(field);
     if (points == null) {
       return null;
@@ -587,10 +603,12 @@ public class IndexSortSortedNumericDocValuesRangeQuery extends Query {
 
     Object missingValue = sortField.getMissingValue();
     LeafReader reader = context.reader();
+    DocValuesSkipper dvSkipper = reader.getDocValuesSkipper(field);
     PointValues pointValues = reader.getPointValues(field);
     final long missingLongValue = missingValue == null ? 0L : (long) missingValue;
     // all documents have docValues or missing value falls outside the range
-    if ((pointValues != null && pointValues.getDocCount() == reader.maxDoc())
+    if ((dvSkipper != null && dvSkipper.docCount() == reader.maxDoc())
+        || (pointValues != null && pointValues.getDocCount() == reader.maxDoc())
         || (missingLongValue < lowerValue || missingLongValue > upperValue)) {
       return IteratorAndCount.denseRange(firstDocIdInclusive, lastDocIdExclusive);
     } else {
