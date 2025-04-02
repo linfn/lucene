@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.Objects;
 import org.apache.lucene.document.KnnFloatVectorField;
 import org.apache.lucene.index.DocValues;
+import org.apache.lucene.index.DocValuesSkipper;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfos;
@@ -161,9 +162,11 @@ public class FieldExistsQuery extends Query {
 
         Terms terms = leaf.terms(field);
         PointValues pointValues = leaf.getPointValues(field);
+        DocValuesSkipper skipper = leaf.getDocValuesSkipper(field);
 
         if ((terms == null || terms.getDocCount() != leaf.maxDoc())
-            && (pointValues == null || pointValues.getDocCount() != leaf.maxDoc())) {
+            && (pointValues == null || pointValues.getDocCount() != leaf.maxDoc())
+            && (skipper == null || skipper.docCount() != leaf.maxDoc())) {
           allReadersRewritable = false;
           break;
         }
@@ -264,6 +267,9 @@ public class FieldExistsQuery extends Query {
             } else if (fieldInfo.getIndexOptions() != IndexOptions.NONE) {
               Terms terms = reader.terms(field);
               return terms == null ? 0 : terms.getDocCount();
+            } else if (fieldInfo.hasDocValuesSkipIndex()) {
+              DocValuesSkipper skipper = reader.getDocValuesSkipper(field);
+              return skipper == null ? 0 : skipper.docCount();
             }
           }
 
