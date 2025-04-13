@@ -68,6 +68,31 @@ public abstract class DocIdSet implements Accountable {
     };
   }
 
+  public static DocIdSet range(int minDoc, int maxDoc, int allDocs) {
+    if (minDoc > maxDoc) {
+      throw new IllegalArgumentException("minDoc must be <= maxDoc");
+    }
+    if (allDocs < maxDoc) {
+      throw new IllegalArgumentException("allDocs must be >= maxDoc");
+    }
+    return new DocIdSet() {
+      @Override
+      public DocIdSetIterator iterator() throws IOException {
+        return DocIdSetIterator.range(minDoc, maxDoc);
+      }
+
+      @Override
+      public Bits bits() throws IOException {
+        return new Bits.MatchRangeBits(minDoc, maxDoc, allDocs);
+      }
+
+      @Override
+      public long ramBytesUsed() {
+        return Integer.BYTES * 2;
+      }
+    };
+  }
+
   /**
    * Provides a {@link DocIdSetIterator} to access the set. This implementation can return <code>
    * null</code> if there are no docs that match.

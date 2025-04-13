@@ -26,9 +26,15 @@ import java.io.IOException;
  */
 public abstract class DocIdSetIterator {
 
+  abstract static class RangeDocIdSetIterator extends DocIdSetIterator {
+    public abstract int minDoc();
+
+    public abstract int maxDoc();
+  }
+
   /** An empty {@code DocIdSetIterator} instance */
   public static final DocIdSetIterator empty() {
-    return new DocIdSetIterator() {
+    return new RangeDocIdSetIterator() {
       boolean exhausted = false;
 
       @Override
@@ -55,12 +61,22 @@ public abstract class DocIdSetIterator {
       public long cost() {
         return 0;
       }
+
+      @Override
+      public int minDoc() {
+        return -1;
+      }
+
+      @Override
+      public int maxDoc() {
+        return -1;
+      }
     };
   }
 
   /** A {@link DocIdSetIterator} that matches all documents up to {@code maxDoc - 1}. */
   public static final DocIdSetIterator all(int maxDoc) {
-    return new DocIdSetIterator() {
+    return new RangeDocIdSetIterator() {
       int doc = -1;
 
       @Override
@@ -86,6 +102,16 @@ public abstract class DocIdSetIterator {
       public long cost() {
         return maxDoc;
       }
+
+      @Override
+      public int minDoc() {
+        return 0;
+      }
+
+      @Override
+      public int maxDoc() {
+        return maxDoc;
+      }
     };
   }
 
@@ -101,7 +127,7 @@ public abstract class DocIdSetIterator {
     if (minDoc < 0) {
       throw new IllegalArgumentException("minDoc must be >= 0 but got minDoc=" + minDoc);
     }
-    return new DocIdSetIterator() {
+    return new RangeDocIdSetIterator() {
       private int doc = -1;
 
       @Override
@@ -129,6 +155,16 @@ public abstract class DocIdSetIterator {
       @Override
       public long cost() {
         return maxDoc - minDoc;
+      }
+
+      @Override
+      public int minDoc() {
+        return minDoc;
+      }
+
+      @Override
+      public int maxDoc() {
+        return maxDoc;
       }
     };
   }

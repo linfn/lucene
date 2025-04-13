@@ -502,6 +502,17 @@ public class LRUQueryCache implements QueryCache, Accountable {
    * and a {@link BitDocIdSet} over a {@link FixedBitSet} otherwise.
    */
   protected CacheAndCount cacheImpl(BulkScorer scorer, int maxDoc) throws IOException {
+    var docIDSetIterator = Weight.unwrapBulkScorerDocIdSetIterator(scorer);
+    if (docIDSetIterator instanceof DocIdSetIterator.RangeDocIdSetIterator range) {
+      if (range.minDoc() == range.maxDoc()) {
+        return new CacheAndCount(DocIdSet.EMPTY, 0);
+      } else if (range.minDoc() == 0 && range.maxDoc() == maxDoc) {
+        return new CacheAndCount(DocIdSet.all(maxDoc), maxDoc);
+      }
+      return new CacheAndCount(
+          DocIdSet.range(range.minDoc(), range.maxDoc(), maxDoc), range.maxDoc() - range.minDoc());
+    }
+
     if (scorer.cost() * 100 >= maxDoc) {
       // FixedBitSet is faster for dense sets and will enable the random-access
       // optimization in ConjunctionDISI

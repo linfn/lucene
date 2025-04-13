@@ -194,6 +194,13 @@ public abstract class Weight implements SegmentCacheable {
     return -1;
   }
 
+  static DocIdSetIterator unwrapBulkScorerDocIdSetIterator(BulkScorer bulkScorer) {
+    if (bulkScorer instanceof DefaultBulkScorer) {
+      return ((DefaultBulkScorer) bulkScorer).iterator;
+    }
+    return null;
+  }
+
   /**
    * Just wraps a Scorer and performs top scoring using it.
    *

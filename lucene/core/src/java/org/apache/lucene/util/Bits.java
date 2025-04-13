@@ -73,4 +73,26 @@ public interface Bits {
       return len;
     }
   }
+
+  class MatchRangeBits implements Bits {
+    final int start;
+    final int end;
+    final int len;
+
+    public MatchRangeBits(int start, int end, int len) {
+      this.start = start;
+      this.end = end;
+      this.len = len;
+    }
+
+    @Override
+    public boolean get(int index) {
+      return index >= start && index < end;
+    }
+
+    @Override
+    public int length() {
+      return len;
+    }
+  }
 }
