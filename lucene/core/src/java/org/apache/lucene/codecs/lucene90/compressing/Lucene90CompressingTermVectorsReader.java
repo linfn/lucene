@@ -296,7 +296,7 @@ public final class Lucene90CompressingTermVectorsReader extends TermVectorsReade
   @Override
   public void close() throws IOException {
     if (!closed) {
-      IOUtils.close(indexReader, vectorsStream);
+      IOUtils.close(decompressor, indexReader, vectorsStream);
       closed = true;
     }
   }

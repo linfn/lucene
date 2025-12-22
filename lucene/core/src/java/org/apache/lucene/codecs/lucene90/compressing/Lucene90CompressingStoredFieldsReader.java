@@ -230,7 +230,7 @@ public final class Lucene90CompressingStoredFieldsReader extends StoredFieldsRea
   @Override
   public void close() throws IOException {
     if (!closed) {
-      IOUtils.close(indexReader, fieldsStream);
+      IOUtils.close(decompressor, indexReader, fieldsStream);
       closed = true;
     }
   }
