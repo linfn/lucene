@@ -19,6 +19,7 @@ package org.apache.lucene.index;
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 
 import java.io.IOException;
+import java.util.Arrays;
 import org.apache.lucene.codecs.DocValuesConsumer;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.index.NumericDocValuesWriter.BufferedNumericDocValues;
@@ -31,6 +32,9 @@ import org.apache.lucene.util.packed.PackedLongValues;
 
 /** Buffers up pending long[] per doc, sorts, then flushes when segment flushes. */
 public class SortedNumericDocValuesWriter extends DocValuesWriter<SortedNumericDocValues> {
+  private static final boolean LEGACY_SORTED_DV_SEMANTICS =
+      Boolean.parseBoolean(System.getProperty("tests.legacySortedDocValuesSemantics", "false"));
+
   private final PackedLongValues.Builder pending; // stream of all values
   private PackedLongValues.Builder pendingCounts; // count of values per doc
   protected final DocsWithFieldSet docsWithField;
@@ -68,14 +72,14 @@ public class SortedNumericDocValuesWriter extends DocValuesWriter<SortedNumericD
     updateBytesUsed();
   }
 
-  // finalize currentDoc: this sorts the values in the current doc
+  // finalize currentDoc; test-only compatibility mode keeps historical sorted semantics.
   private void finishCurrentDoc() {
     if (currentDoc == -1) {
       return;
     }
-    // if (currentUpto > 1) {
-    //   Arrays.sort(currentValues, 0, currentUpto);
-    // }
+    if (LEGACY_SORTED_DV_SEMANTICS && currentUpto > 1) {
+      Arrays.sort(currentValues, 0, currentUpto);
+    }
     for (int i = 0; i < currentUpto; i++) {
       pending.add(currentValues[i]);
     }

@@ -20,6 +20,7 @@ import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 import static org.apache.lucene.util.ByteBlockPool.BYTE_BLOCK_SIZE;
 
 import java.io.IOException;
+import java.util.Arrays;
 import org.apache.lucene.codecs.DocValuesConsumer;
 import org.apache.lucene.codecs.DocValuesProducer;
 import org.apache.lucene.index.SortedDocValuesWriter.BufferedSortedDocValues;
@@ -40,6 +41,9 @@ import org.apache.lucene.util.packed.PackedLongValues;
  * flushes.
  */
 public class SortedSetDocValuesWriter extends DocValuesWriter<SortedSetDocValues> {
+  private static final boolean LEGACY_SORTED_DV_SEMANTICS =
+      Boolean.parseBoolean(System.getProperty("tests.legacySortedDocValuesSemantics", "false"));
+
   protected final BytesRefHash hash;
   private final PackedLongValues.Builder pending; // stream of all termIDs
   private PackedLongValues.Builder pendingCounts; // termIDs per doc
@@ -97,25 +101,32 @@ public class SortedSetDocValuesWriter extends DocValuesWriter<SortedSetDocValues
     updateBytesUsed();
   }
 
-  // finalize currentDoc: this deduplicates the current term ids
+  // finalize currentDoc; test-only compatibility mode keeps historical sort+dedup semantics.
   private void finishCurrentDoc() {
     if (currentDoc == -1) {
       return;
     }
-    // if (currentUpto > 1) {
-    //   Arrays.sort(currentValues, 0, currentUpto);
-    // }
-    // int lastValue = -1;
-    int count = currentUpto;
-    for (int i = 0; i < currentUpto; i++) {
-      int termID = currentValues[i];
-      // if it's not a duplicate
-      // if (termID != lastValue) {
-      //   pending.add(termID); // record the term id
-      //   count++;
-      // }
-      // lastValue = termID;
-      pending.add(termID);
+    int count;
+    if (LEGACY_SORTED_DV_SEMANTICS) {
+      if (currentUpto > 1) {
+        Arrays.sort(currentValues, 0, currentUpto);
+      }
+      int lastValue = -1;
+      count = 0;
+      for (int i = 0; i < currentUpto; i++) {
+        int termID = currentValues[i];
+        if (termID != lastValue) {
+          pending.add(termID);
+          count++;
+        }
+        lastValue = termID;
+      }
+    } else {
+      count = currentUpto;
+      for (int i = 0; i < currentUpto; i++) {
+        int termID = currentValues[i];
+        pending.add(termID);
+      }
     }
     // record the number of unique term ids for this doc
     if (pendingCounts != null) {
@@ -301,7 +312,9 @@ public class SortedSetDocValuesWriter extends DocValuesWriter<SortedSetDocValues
         for (int i = 0; i < ordCount; i++) {
           currentDoc[i] = ordMap[Math.toIntExact(ordsIter.next())];
         }
-        // Arrays.sort(currentDoc, 0, ordCount);
+        if (LEGACY_SORTED_DV_SEMANTICS) {
+          Arrays.sort(currentDoc, 0, ordCount);
+        }
         ordUpto = 0;
       }
       return docID;

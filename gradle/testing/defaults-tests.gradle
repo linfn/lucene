@@ -56,6 +56,9 @@ allprojects {
           // Other settings.
           [propName: 'tests.neverUpToDate', value: true,
            description: "Make test tasks always fail the up-to-date checks (rerun) even if the inputs have not changed."],
+          [propName: 'tests.legacySortedDocValuesSemantics',
+           value: true,
+           description: "Enable temporary compatibility semantics for sorted set/sorted numeric doc values in tests."],
       ]
 
       // Resolves test option's value.
@@ -163,6 +166,7 @@ allprojects {
       // Pass these to RandomizedRunner so that it doesn't attempt to set them.
       systemProperty 'junit4.childvm.count', '1'
       systemProperty 'junit4.childvm.id', '0'
+      systemProperty 'tests.legacySortedDocValuesSemantics', resolvedTestOption('tests.legacySortedDocValuesSemantics')
 
       // Set up cwd and temp locations.
       systemProperty("java.io.tmpdir", testsTmpDir)
