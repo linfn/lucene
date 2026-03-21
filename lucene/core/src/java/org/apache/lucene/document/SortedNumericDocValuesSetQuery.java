@@ -133,11 +133,9 @@ final class SortedNumericDocValuesSetQuery extends Query implements Accountable 
                   int count = values.docValueCount();
                   for (int i = 0; i < count; i++) {
                     final long value = values.nextValue();
-                    if (value < numbers.minValue) {
-                      continue;
-                    } else if (value > numbers.maxValue) {
-                      return false; // values are sorted, terminate
-                    } else if (numbers.contains(value)) {
+                    if (value >= numbers.minValue
+                        && value <= numbers.maxValue
+                        && numbers.contains(value)) {
                       return true;
                     }
                   }

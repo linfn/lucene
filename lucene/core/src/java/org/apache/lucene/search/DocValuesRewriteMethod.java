@@ -191,7 +191,6 @@ public final class DocValuesRewriteMethod extends MultiTermQuery.RewriteMethod {
 
               final SortedDocValues singleton = DocValues.unwrapSingleton(values);
               final TwoPhaseIterator iterator;
-              final long max = maxOrd;
               if (singleton != null) {
                 iterator =
                     new TwoPhaseIterator(singleton) {
@@ -212,9 +211,7 @@ public final class DocValuesRewriteMethod extends MultiTermQuery.RewriteMethod {
                       public boolean matches() throws IOException {
                         for (int i = 0; i < values.docValueCount(); i++) {
                           long value = values.nextOrd();
-                          if (value > max) {
-                            return false; // values are sorted, terminate
-                          } else if (termSet.get(value)) {
+                          if (termSet.get(value)) {
                             return true;
                           }
                         }
