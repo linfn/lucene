@@ -18,6 +18,7 @@ package org.apache.lucene.document;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
@@ -39,6 +40,47 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IOUtils;
 
 public class TestSortedSetDocValuesSetQuery extends LuceneTestCase {
+
+  public void testUnsortedValuesStillMatchWithSkipper() throws Exception {
+    Directory dir = newDirectory();
+    RandomIndexWriter writer = new RandomIndexWriter(random(), dir);
+
+    Document doc = new Document();
+    doc.add(SortedSetDocValuesField.indexedField("f", new BytesRef("z")));
+    doc.add(SortedSetDocValuesField.indexedField("f", new BytesRef("a")));
+    writer.addDocument(doc);
+
+    doc = new Document();
+    doc.add(SortedSetDocValuesField.indexedField("f", new BytesRef("z")));
+    doc.add(SortedSetDocValuesField.indexedField("f", new BytesRef("b")));
+    writer.addDocument(doc);
+
+    doc = new Document();
+    doc.add(SortedSetDocValuesField.indexedField("f", new BytesRef("a")));
+    writer.addDocument(doc);
+
+    writer.addDocument(new Document());
+
+    writer.forceMerge(1);
+    IndexReader reader = writer.getReader();
+    writer.close();
+
+    assertNotNull(getOnlyLeafReader(reader).getDocValuesSkipper("f"));
+
+    IndexSearcher searcher = newSearcher(reader);
+    assertEquals(
+        3,
+        searcher.count(
+            SortedSetDocValuesField.newSlowSetQuery(
+                "f", Arrays.asList(new BytesRef("a"), new BytesRef("b")))));
+    assertEquals(
+        1,
+        searcher.count(
+            SortedSetDocValuesField.newSlowSetQuery("f", List.of(new BytesRef("b")))));
+
+    reader.close();
+    dir.close();
+  }
 
   public void testMissingTerms() throws Exception {
     String fieldName = "field1";

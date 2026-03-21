@@ -20,11 +20,13 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Objects;
 import org.apache.lucene.index.DocValues;
+import org.apache.lucene.index.DocValuesSkipper;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.search.ConstantScoreScorer;
 import org.apache.lucene.search.ConstantScoreWeight;
+import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchNoDocsQuery;
 import org.apache.lucene.search.Query;
@@ -106,6 +108,17 @@ final class SortedNumericDocValuesSetQuery extends Query implements Accountable 
         if (context.reader().getFieldInfos().fieldInfo(field) == null) {
           return null;
         }
+        DocValuesSkipper skipper = context.reader().getDocValuesSkipper(field);
+        if (skipper != null) {
+          if (numbers.intersects(skipper.minValue(), skipper.maxValue()) == false) {
+            return null;
+          }
+          if (skipper.minValue() == skipper.maxValue()
+              && skipper.docCount() == context.reader().maxDoc()) {
+            return new ConstantScoreScorer(
+                this, score(), scoreMode, DocIdSetIterator.all(skipper.docCount()));
+          }
+        }
         SortedNumericDocValues values = DocValues.getSortedNumeric(context.reader(), field);
         final NumericDocValues singleton = DocValues.unwrapSingleton(values);
         final TwoPhaseIterator iterator;
@@ -148,7 +161,11 @@ final class SortedNumericDocValuesSetQuery extends Query implements Accountable 
                 }
               };
         }
-        return new ConstantScoreScorer(this, score(), scoreMode, iterator);
+        final TwoPhaseIterator maybeSkipperIterator =
+            skipper == null
+                ? iterator
+                : new SortedNumericDocValuesSetSkippingIterator(iterator, skipper, numbers);
+        return new ConstantScoreScorer(this, score(), scoreMode, maybeSkipperIterator);
       }
     };
   }

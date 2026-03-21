@@ -18,6 +18,7 @@ package org.apache.lucene.search;
 
 import java.io.IOException;
 import org.apache.lucene.index.DocValues;
+import org.apache.lucene.index.DocValuesSkipper;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SortedDocValues;
@@ -153,6 +154,7 @@ public final class DocValuesRewriteMethod extends MultiTermQuery.RewriteMethod {
           if (values.getValueCount() == 0) {
             return null; // no values/docs so nothing can match
           }
+          final DocValuesSkipper skipper = context.reader().getDocValuesSkipper(query.field);
 
           final Weight weight = this;
           return new ScorerSupplier() {
@@ -187,6 +189,21 @@ public final class DocValuesRewriteMethod extends MultiTermQuery.RewriteMethod {
               if (maxOrd < 0) {
                 return new ConstantScoreScorer(
                     weight, score(), scoreMode, DocIdSetIterator.empty());
+              }
+
+              if (skipper != null) {
+                final boolean intersectsSegment =
+                    SortedSetDocValuesTermSetSkippingIterator.intersects(
+                        termSet, skipper.minValue(), skipper.maxValue());
+                if (intersectsSegment == false) {
+                  return new ConstantScoreScorer(
+                      weight, score(), scoreMode, DocIdSetIterator.empty());
+                }
+                if (skipper.minValue() == skipper.maxValue()
+                    && skipper.docCount() == context.reader().maxDoc()) {
+                  return new ConstantScoreScorer(
+                      weight, score(), scoreMode, DocIdSetIterator.all(context.reader().maxDoc()));
+                }
               }
 
               final SortedDocValues singleton = DocValues.unwrapSingleton(values);
@@ -225,7 +242,15 @@ public final class DocValuesRewriteMethod extends MultiTermQuery.RewriteMethod {
                     };
               }
 
-              return new ConstantScoreScorer(weight, score(), scoreMode, iterator);
+              final TwoPhaseIterator skippingIterator;
+              if (skipper == null) {
+                skippingIterator = iterator;
+              } else {
+                skippingIterator =
+                    new SortedSetDocValuesTermSetSkippingIterator(iterator, skipper, termSet);
+              }
+
+              return new ConstantScoreScorer(weight, score(), scoreMode, skippingIterator);
             }
 
             @Override

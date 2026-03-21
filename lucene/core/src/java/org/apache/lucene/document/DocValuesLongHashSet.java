@@ -35,6 +35,7 @@ final class DocValuesLongHashSet implements Accountable {
   final int mask;
   final boolean hasMissingValue;
   final int size;
+  final long[] values;
 
   /** minimum value in the set, or Long.MAX_VALUE for an empty set */
   final long minValue;
@@ -65,6 +66,7 @@ final class DocValuesLongHashSet implements Accountable {
     }
     this.hasMissingValue = hasMissingValue;
     this.size = size;
+    this.values = values;
     this.minValue = values.length == 0 ? Long.MAX_VALUE : values[0];
     this.maxValue = values.length == 0 ? Long.MIN_VALUE : values[values.length - 1];
   }
@@ -101,6 +103,17 @@ final class DocValuesLongHashSet implements Accountable {
         return true;
       }
     }
+  }
+
+  boolean intersects(long min, long max) {
+    if (values.length == 0 || min > max) {
+      return false;
+    }
+    int index = Arrays.binarySearch(values, min);
+    if (index < 0) {
+      index = -1 - index;
+    }
+    return index < values.length && values[index] <= max;
   }
 
   /** returns a stream of all values contained in this set */
@@ -143,6 +156,8 @@ final class DocValuesLongHashSet implements Accountable {
 
   @Override
   public long ramBytesUsed() {
-    return BASE_RAM_BYTES + RamUsageEstimator.sizeOfObject(table);
+    return BASE_RAM_BYTES
+        + RamUsageEstimator.sizeOfObject(table)
+        + RamUsageEstimator.sizeOfObject(values);
   }
 }
